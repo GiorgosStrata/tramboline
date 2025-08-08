@@ -1,26 +1,28 @@
 (() => {
-  const { Engine, Render, Runner, Bodies, Composite, Mouse, MouseConstraint } = Matter;
+  const { Engine, Render, Runner, Bodies, Composite, Mouse, MouseConstraint, Vertices } = Matter;
 
-  // Gravity values for planets
-  const gravityByPlanet = {
-    earth: 1,
-    moon: 0.165,
-    jupiter: 2.528,
+  // Planet data: gravity & background gradient
+  const planetData = {
+    earth: {
+      gravity: 1,
+      background: 'linear-gradient(to bottom, #87ceeb 0%, #1e3c72 100%)',
+    },
+    moon: {
+      gravity: 0.165,
+      background: 'linear-gradient(to bottom, #999999 0%, #222222 100%)',
+    },
+    jupiter: {
+      gravity: 2.528,
+      background: 'linear-gradient(to bottom, #d4af37 0%, #7b5100 100%)',
+    },
   };
 
-  // Background colors for planets
-  const backgroundByPlanet = {
-    earth: 'linear-gradient(to bottom, #87ceeb 0%, #1e3c72 100%)',   // blue sky gradient
-    moon: 'linear-gradient(to bottom, #999999 0%, #222222 100%)',    // gray moon-like
-    jupiter: 'linear-gradient(to bottom, #d4af37 0%, #7b5100 100%)', // golden brown for Jupiter
-  };
-
-  // Setup engine and world
+  // Setup Matter.js engine and world
   const engine = Engine.create();
-  engine.gravity.y = gravityByPlanet.earth;
+  engine.gravity.y = planetData.earth.gravity;
   const world = engine.world;
 
-  // Setup canvas and renderer
+  // Canvas & renderer setup
   const canvas = document.getElementById('world');
   const uiHeight = document.querySelector('.ui').offsetHeight;
 
@@ -29,7 +31,7 @@
     engine,
     options: {
       wireframes: false,
-      background: backgroundByPlanet.earth,
+      background: planetData.earth.background,
       width: window.innerWidth,
       height: window.innerHeight - uiHeight,
       pixelRatio: window.devicePixelRatio,
@@ -37,30 +39,30 @@
   });
 
   Render.run(render);
-
   const runner = Runner.create();
   Runner.run(runner, engine);
 
-  // Resize canvas on window resize
+  // Update canvas size and trampoline on resize
   window.addEventListener('resize', () => {
     render.canvas.width = window.innerWidth;
     render.canvas.height = window.innerHeight - uiHeight;
+    createTrampoline();
     Render.lookAt(render, Composite.allBodies(world));
   });
 
-  // Remove old trampoline/ground if any
+  // Trampoline & ground references
   let trampoline, ground;
 
-  // Create a classic trampoline as a fixed, bouncy rectangle near bottom of screen
+  // Create trampoline: static rectangle centered, width = 50% screen, height fixed
   function createTrampoline() {
-    const width = window.innerWidth * 0.6;
-    const height = 20;
-    const yPos = render.canvas.height - height - 10; // 10 px above bottom
+    const width = window.innerWidth * 0.5;
+    const height = 22;
+    const yPos = render.canvas.height - height - 10;
 
+    // Remove old if present
     if (trampoline) Composite.remove(world, trampoline);
     if (ground) Composite.remove(world, ground);
 
-    // Trampoline: static but very bouncy
     trampoline = Bodies.rectangle(
       window.innerWidth / 2,
       yPos,
@@ -68,8 +70,10 @@
       height,
       {
         isStatic: true,
-        restitution: 1.1, // >1 for extra bounce effect
+        restitution: 1.2, // super bouncy
         friction: 0.1,
+        frictionStatic: 0,
+        frictionAir: 0,
         render: {
           fillStyle: '#27ae60',
           strokeStyle: '#145214',
@@ -78,7 +82,7 @@
       }
     );
 
-    // Ground below trampoline to catch falling shapes
+    // Ground to catch shapes
     ground = Bodies.rectangle(
       window.innerWidth / 2,
       yPos + 50,
@@ -87,7 +91,7 @@
       {
         isStatic: true,
         restitution: 0,
-        friction: 0.6,
+        friction: 0.7,
         render: {
           fillStyle: '#555555',
         },
@@ -105,86 +109,218 @@
   const sizeSlider = document.getElementById('size-slider');
   const massValueLabel = document.getElementById('mass-value');
   const sizeValueLabel = document.getElementById('size-value');
+  const shapeButtons = document.querySelectorAll('.shape-btn');
 
-  // Update slider value labels
-  massSlider.addEventListener('input', () => {
+  // Selected shape & preview
+  let selectedShape = 'circle';
+  let isPlacing = false;
+  let previewBody = null;
+
+  // Update slider labels
+  function updateLabels() {
     massValueLabel.textContent = massSlider.value;
-  });
-  sizeSlider.addEventListener('input', () => {
     sizeValueLabel.textContent = sizeSlider.value;
+  }
+  updateLabels();
+
+  // Update gravity & background on planet change
+  planetSelect.addEventListener('change', e => {
+    const p = e.target.value;
+    if (!planetData[p]) return;
+    engine.gravity.y = planetData[p].gravity;
+    render.options.background = planetData[p].background;
+    Render.lookAt(render, Composite.allBodies(world));
   });
 
-  // Planet selection changes gravity and background
-  planetSelect.addEventListener('change', () => {
-    const planet = planetSelect.value;
-    engine.gravity.y = gravityByPlanet[planet] || 1;
-    render.options.background = backgroundByPlanet[planet] || '#eef2f3';
-    createTrampoline(); // recreate trampoline in case height changes
-  });
-
-  // Helper: create triangle body (equilateral)
-  function createTriangle(x, y, size, options) {
-    const path = `0 0 ${size} 0 ${size / 2} ${size * Math.sin(Math.PI / 3)}`;
-    return Bodies.fromVertices(x, y, Matter.Vertices.fromPath(path), options, true);
-  }
-
-  // Add shape to world
-  function addShape(type, x, y, size, mass) {
-    let body;
-
-    const options = {
-      mass: mass,
-      restitution: 0.8,
-      friction: 0.1,
-      frictionAir: 0.02,
-      render: { fillStyle: '#3498db' },
-    };
-
-    switch (type) {
-      case 'circle':
-        body = Bodies.circle(x, y, size / 2, options);
-        break;
-      case 'square':
-        body = Bodies.rectangle(x, y, size, size, options);
-        break;
-      case 'triangle':
-        body = createTriangle(x, y, size, options);
-        break;
-      default:
-        return;
-    }
-
-    Composite.add(world, body);
-  }
-
-  // Add shape buttons event
-  document.querySelectorAll('.shape-controls button').forEach((btn) => {
+  // Handle shape button selection highlight
+  shapeButtons.forEach(btn => {
     btn.addEventListener('click', () => {
-      const shape = btn.getAttribute('data-shape');
-      const size = parseInt(sizeSlider.value);
-      const mass = parseInt(massSlider.value);
-
-      // Spawn near the top, random X
-      const x = Math.random() * (window.innerWidth - size) + size / 2;
-      const y = 50;
-
-      addShape(shape, x, y, size, mass);
+      selectedShape = btn.getAttribute('data-shape');
+      shapeButtons.forEach(b => {
+        b.classList.toggle('selected', b === btn);
+        b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
+      });
     });
   });
 
-  // Mouse control to drag bodies
+  // Update slider labels on input
+  massSlider.addEventListener('input', updateLabels);
+  sizeSlider.addEventListener('input', updateLabels);
+
+  // Convert triangle vertices relative to center and size
+  function createTriangleVertices(size) {
+    const h = size * Math.sqrt(3) / 2;
+    return [
+      { x: 0, y: -h / 2 },
+      { x: -size / 2, y: h / 2 },
+      { x: size / 2, y: h / 2 },
+    ];
+  }
+
+  // Create body factory based on shape type
+  function createBody(x, y, shape, mass, size) {
+    const options = {
+      mass,
+      restitution: 0.9,
+      friction: 0.05,
+      frictionAir: 0.01,
+      render: { fillStyle: '#3498db' },
+    };
+
+    switch(shape) {
+      case 'circle':
+        return Bodies.circle(x, y, size / 2, options);
+      case 'square':
+        return Bodies.rectangle(x, y, size, size, options);
+      case 'triangle':
+        return Bodies.fromVertices(x, y, [createTriangleVertices(size)], options, true);
+      default:
+        return Bodies.circle(x, y, size / 2, options);
+    }
+  }
+
+  // Mouse/touch interaction for placing shapes with preview
+
   const mouse = Mouse.create(render.canvas);
   const mouseConstraint = MouseConstraint.create(engine, {
     mouse,
     constraint: {
       stiffness: 0.2,
-      render: {
-        visible: false,
-      },
+      render: { visible: false },
     },
   });
   Composite.add(world, mouseConstraint);
 
-  // Keep the mouse in sync with rendering
-  render.mouse = mouse;
+  // Track if left mouse is down and preview position
+  let mouseDown = false;
+  let previewPos = null;
+
+  // Show preview shape on mousemove when placing
+  function updatePreview(pos) {
+    if (!previewBody) {
+      previewBody = createBody(pos.x, pos.y, selectedShape, +massSlider.value, +sizeSlider.value);
+      previewBody.isSensor = true; // no collisions
+      previewBody.render.fillStyle = 'rgba(52, 152, 219, 0.5)';
+      Composite.add(world, previewBody);
+    } else {
+      Matter.Body.setPosition(previewBody, pos);
+    }
+  }
+
+  // Remove preview shape
+  function removePreview() {
+    if (previewBody) {
+      Composite.remove(world, previewBody);
+      previewBody = null;
+    }
+  }
+
+  // Mouse down: start placing (left button only)
+  render.canvas.addEventListener('mousedown', e => {
+    if (e.button === 0) { // Left click
+      mouseDown = true;
+      const pos = mouse.position;
+      previewPos = pos;
+      updatePreview(pos);
+    }
+  });
+
+  // Mouse move: update preview position if placing
+  render.canvas.addEventListener('mousemove', e => {
+    if (mouseDown) {
+      updatePreview(mouse.position);
+    }
+  });
+
+  // Mouse up: finalize placement
+  render.canvas.addEventListener('mouseup', e => {
+    if (e.button === 0 && mouseDown) {
+      mouseDown = false;
+      if (previewBody) {
+        // Remove preview and spawn real body at last position with mass and size
+        const pos = previewBody.position;
+        Composite.remove(world, previewBody);
+        previewBody = null;
+
+        const realBody = createBody(
+          pos.x,
+          pos.y,
+          selectedShape,
+          +massSlider.value,
+          +sizeSlider.value
+        );
+
+        Composite.add(world, realBody);
+      }
+    }
+  });
+
+  // Right click cancels placement preview
+  render.canvas.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    if (previewBody) {
+      removePreview();
+      mouseDown = false;
+    }
+  });
+
+  // Touch events for mobile support
+  render.canvas.addEventListener('touchstart', e => {
+    e.preventDefault();
+    if (e.touches.length === 1) {
+      mouseDown = true;
+      const touch = e.touches[0];
+      const rect = canvas.getBoundingClientRect();
+      const pos = {
+        x: touch.clientX - rect.left,
+        y: touch.clientY - rect.top,
+      };
+      updatePreview(pos);
+    }
+  }, { passive: false });
+
+  render.canvas.addEventListener('touchmove', e => {
+    e.preventDefault();
+    if (mouseDown && e.touches.length === 1) {
+      const touch = e.touches[0];
+      const rect = canvas.getBoundingClientRect();
+      const pos = {
+        x: touch.clientX - rect.left,
+        y: touch.clientY - rect.top,
+      };
+      updatePreview(pos);
+    }
+  }, { passive: false });
+
+  render.canvas.addEventListener('touchend', e => {
+    e.preventDefault();
+    if (mouseDown) {
+      mouseDown = false;
+      if (previewBody) {
+        const pos = previewBody.position;
+        Composite.remove(world, previewBody);
+        previewBody = null;
+
+        const realBody = createBody(
+          pos.x,
+          pos.y,
+          selectedShape,
+          +massSlider.value,
+          +sizeSlider.value
+        );
+
+        Composite.add(world, realBody);
+      }
+    }
+  }, { passive: false });
+
+  // Make sure canvas size is set initially
+  function resize() {
+    render.canvas.width = window.innerWidth;
+    render.canvas.height = window.innerHeight - uiHeight;
+    createTrampoline();
+    Render.lookAt(render, Composite.allBodies(world));
+  }
+  resize();
+
 })();
