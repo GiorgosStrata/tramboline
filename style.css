@@ -1,71 +1,149 @@
-/* Basic Reset */
+/* Reset */
 * {
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent; /* Remove tap highlight on mobile */
 }
 
-body {
+body, html {
   margin: 0;
+  height: 100%;
+  overflow: hidden;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   background: #eef2f3;
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  overflow: hidden;
+  -webkit-user-select: none; /* Prevent selection on mobile */
+  -moz-user-select: none;
+  user-select: none;
 }
 
+/* UI bar fixed top */
 .ui {
-  padding: 15px 20px;
-  background: rgba(44, 62, 80, 0.9);
-  color: white;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: rgba(30, 45, 65, 0.95);
+  padding: 10px 12px;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 15px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+  justify-content: center;
+  gap: 12px;
+  z-index: 100;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.4);
   user-select: none;
-  position: relative;
-  z-index: 10;
 }
 
-.ui label,
-.ui select,
-.ui button,
-.ui input[type="range"] {
-  font-size: 1rem;
-}
-
-.shape-controls button {
-  cursor: pointer;
-  background: #3498db;
-  border: none;
+/* Control groups for neat spacing */
+.control-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   color: white;
-  padding: 8px 16px;
+  font-size: 14px;
+}
+
+/* Planet select */
+select#planet-select {
+  padding: 5px 8px;
   border-radius: 6px;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  outline-offset: 2px;
+}
+
+/* Shape buttons container */
+.control-group.shapes {
+  gap: 10px;
+}
+
+/* Shape buttons style */
+.shape-btn {
+  font-size: 24px;
+  width: 38px;
+  height: 38px;
+  line-height: 38px;
+  text-align: center;
+  border-radius: 6px;
+  border: 2px solid transparent;
+  background: rgba(52, 152, 219, 0.8);
+  color: white;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.25s, border-color 0.25s;
+}
+
+.shape-btn:hover {
+  background-color: rgba(52, 152, 219, 1);
+}
+
+.shape-btn.selected {
+  border-color: #f39c12;
+  background-color: #e67e22;
+  font-weight: 700;
+}
+
+/* Sliders style */
+input[type="range"] {
+  cursor: pointer;
+  -webkit-appearance: none;
+  width: 100px;
+  height: 8px;
+  border-radius: 6px;
+  background: #3498db;
+  outline: none;
   transition: background 0.3s ease;
-  font-weight: 600;
 }
 
-.shape-controls button:hover {
-  background: #2980b9;
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  background: #f39c12;
+  cursor: pointer;
+  border-radius: 50%;
+  border: none;
+  margin-top: -5px;
+  transition: background-color 0.25s;
 }
 
+input[type="range"]:hover::-webkit-slider-thumb {
+  background-color: #e67e22;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  background: #f39c12;
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+  transition: background-color 0.25s;
+}
+
+/* Canvas fills remaining space below UI */
 #world {
-  flex: 1;
   display: block;
+  position: fixed;
+  top: 52px; /* height of .ui */
+  left: 0;
   width: 100vw;
-  height: 100%;
-  touch-action: manipulation;
+  bottom: 0;
+  background: #eef2f3;
+  touch-action: none; /* prevent double tap zoom on mobile */
+  -webkit-user-drag: none;
 }
 
-/* Responsive UI */
+/* Responsive tweaks for mobile */
 @media (max-width: 600px) {
   .ui {
-    flex-direction: column;
-    gap: 10px;
+    gap: 8px;
+    padding: 8px 10px;
+    font-size: 13px;
   }
 
-  .shape-controls {
-    display: flex;
-    gap: 10px;
+  input[type="range"] {
+    width: 80px;
   }
 }
