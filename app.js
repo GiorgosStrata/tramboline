@@ -1,30 +1,37 @@
-// Module pattern to keep global namespace clean
 (() => {
-  const { Engine, Render, Runner, Bodies, Composite, Events, Mouse, MouseConstraint, Vector } = Matter;
+  const { Engine, Render, Runner, Bodies, Composite, Mouse, MouseConstraint } = Matter;
 
-  // Setup engine and world
-  const engine = Engine.create();
-  const world = engine.world;
-
-  // Initial gravity for Earth
+  // Gravity values for planets
   const gravityByPlanet = {
     earth: 1,
     moon: 0.165,
     jupiter: 2.528,
   };
 
+  // Background colors for planets
+  const backgroundByPlanet = {
+    earth: 'linear-gradient(to bottom, #87ceeb 0%, #1e3c72 100%)',   // blue sky gradient
+    moon: 'linear-gradient(to bottom, #999999 0%, #222222 100%)',    // gray moon-like
+    jupiter: 'linear-gradient(to bottom, #d4af37 0%, #7b5100 100%)', // golden brown for Jupiter
+  };
+
+  // Setup engine and world
+  const engine = Engine.create();
   engine.gravity.y = gravityByPlanet.earth;
+  const world = engine.world;
 
   // Setup canvas and renderer
   const canvas = document.getElementById('world');
+  const uiHeight = document.querySelector('.ui').offsetHeight;
+
   const render = Render.create({
     canvas,
     engine,
     options: {
       wireframes: false,
-      background: 'transparent',
+      background: backgroundByPlanet.earth,
       width: window.innerWidth,
-      height: window.innerHeight - document.querySelector('.ui').offsetHeight,
+      height: window.innerHeight - uiHeight,
       pixelRatio: window.devicePixelRatio,
     },
   });
@@ -37,124 +44,91 @@
   // Resize canvas on window resize
   window.addEventListener('resize', () => {
     render.canvas.width = window.innerWidth;
-    render.canvas.height = window.innerHeight - document.querySelector('.ui').offsetHeight;
+    render.canvas.height = window.innerHeight - uiHeight;
     Render.lookAt(render, Composite.allBodies(world));
   });
 
-  // Trampoline parameters
-  const trampolineWidth = window.innerWidth * 0.6;
-  const trampolineHeight = 20;
-  const trampolineY = render.canvas.height - trampolineHeight * 2;
+  // Remove old trampoline/ground if any
+  let trampoline, ground;
 
-  // Create trampoline surface as a soft body using constraints (approximate)
-  // We'll create a chain of small rectangles linked by springs (constraints)
+  // Create a classic trampoline as a fixed, bouncy rectangle near bottom of screen
+  function createTrampoline() {
+    const width = window.innerWidth * 0.6;
+    const height = 20;
+    const yPos = render.canvas.height - height - 10; // 10 px above bottom
 
-  const trampolineSegments = 15;
-  const segmentWidth = trampolineWidth / trampolineSegments;
-  const trampolineBodies = [];
-  const trampolineConstraints = [];
+    if (trampoline) Composite.remove(world, trampoline);
+    if (ground) Composite.remove(world, ground);
 
-  // Create trampoline base (fixed)
-  const trampolineBase = Bodies.rectangle(
-    window.innerWidth / 2,
-    trampolineY + trampolineHeight / 2,
-    trampolineWidth,
-    trampolineHeight,
-    { isStatic: true, render: { fillStyle: '#27ae60' } }
-  );
-  Composite.add(world, trampolineBase);
-
-  // Create trampoline elastic segments (small rectangles)
-  for (let i = 0; i <= trampolineSegments; i++) {
-    const segment = Bodies.rectangle(
-      window.innerWidth / 2 - trampolineWidth / 2 + i * segmentWidth,
-      trampolineY,
-      segmentWidth - 2,
-      10,
+    // Trampoline: static but very bouncy
+    trampoline = Bodies.rectangle(
+      window.innerWidth / 2,
+      yPos,
+      width,
+      height,
       {
-        chamfer: 5,
-        collisionFilter: { group: -1 },
-        render: { fillStyle: '#2ecc71' },
-        mass: 0.5,
-        friction: 0,
-        frictionAir: 0.02,
-        restitution: 0.9,
+        isStatic: true,
+        restitution: 1.1, // >1 for extra bounce effect
+        friction: 0.1,
+        render: {
+          fillStyle: '#27ae60',
+          strokeStyle: '#145214',
+          lineWidth: 3,
+        },
       }
     );
-    trampolineBodies.push(segment);
+
+    // Ground below trampoline to catch falling shapes
+    ground = Bodies.rectangle(
+      window.innerWidth / 2,
+      yPos + 50,
+      window.innerWidth,
+      60,
+      {
+        isStatic: true,
+        restitution: 0,
+        friction: 0.6,
+        render: {
+          fillStyle: '#555555',
+        },
+      }
+    );
+
+    Composite.add(world, [trampoline, ground]);
   }
 
-  Composite.add(world, trampolineBodies);
+  createTrampoline();
 
-  // Add constraints (springs) between segments to simulate elasticity
-  for (let i = 0; i < trampolineSegments; i++) {
-    const constraint = Matter.Constraint.create({
-      bodyA: trampolineBodies[i],
-      bodyB: trampolineBodies[i + 1],
-      stiffness: 0.5,
-      damping: 0.1,
-      length: segmentWidth,
-      render: {
-        strokeStyle: '#27ae60',
-      },
-    });
-    trampolineConstraints.push(constraint);
-  }
-
-  Composite.add(world, trampolineConstraints);
-
-  // Anchor left and right ends to fixed points to simulate anchored trampoline
-  const leftAnchor = Matter.Constraint.create({
-    pointA: {
-      x: window.innerWidth / 2 - trampolineWidth / 2,
-      y: trampolineY,
-    },
-    bodyB: trampolineBodies[0],
-    pointB: { x: 0, y: 0 },
-    stiffness: 1,
-    damping: 0.1,
-  });
-
-  const rightAnchor = Matter.Constraint.create({
-    pointA: {
-      x: window.innerWidth / 2 + trampolineWidth / 2,
-      y: trampolineY,
-    },
-    bodyB: trampolineBodies[trampolineSegments],
-    pointB: { x: 0, y: 0 },
-    stiffness: 1,
-    damping: 0.1,
-  });
-
-  Composite.add(world, [leftAnchor, rightAnchor]);
-
-  // UI elements
+  // UI Elements
   const planetSelect = document.getElementById('planet-select');
   const massSlider = document.getElementById('mass-slider');
   const sizeSlider = document.getElementById('size-slider');
   const massValueLabel = document.getElementById('mass-value');
   const sizeValueLabel = document.getElementById('size-value');
 
+  // Update slider value labels
   massSlider.addEventListener('input', () => {
     massValueLabel.textContent = massSlider.value;
   });
-
   sizeSlider.addEventListener('input', () => {
     sizeValueLabel.textContent = sizeSlider.value;
   });
 
+  // Planet selection changes gravity and background
   planetSelect.addEventListener('change', () => {
     const planet = planetSelect.value;
-    engine.gravity.y = gravityByPlanet[planet];
+    engine.gravity.y = gravityByPlanet[planet] || 1;
+    render.options.background = backgroundByPlanet[planet] || '#eef2f3';
+    createTrampoline(); // recreate trampoline in case height changes
   });
 
-  // Helper function: create triangle body (equilateral)
+  // Helper: create triangle body (equilateral)
   function createTriangle(x, y, size, options) {
     const path = `0 0 ${size} 0 ${size / 2} ${size * Math.sin(Math.PI / 3)}`;
     return Bodies.fromVertices(x, y, Matter.Vertices.fromPath(path), options, true);
   }
 
-  // Add shape function
+  // Add shape to world
   function addShape(type, x, y, size, mass) {
     let body;
 
@@ -183,14 +157,14 @@
     Composite.add(world, body);
   }
 
-  // Add shape buttons handler
+  // Add shape buttons event
   document.querySelectorAll('.shape-controls button').forEach((btn) => {
     btn.addEventListener('click', () => {
       const shape = btn.getAttribute('data-shape');
       const size = parseInt(sizeSlider.value);
       const mass = parseInt(massSlider.value);
 
-      // Spawn shape at random x near top of canvas
+      // Spawn near the top, random X
       const x = Math.random() * (window.innerWidth - size) + size / 2;
       const y = 50;
 
@@ -198,7 +172,7 @@
     });
   });
 
-  // Add mouse control for fun (drag and throw shapes)
+  // Mouse control to drag bodies
   const mouse = Mouse.create(render.canvas);
   const mouseConstraint = MouseConstraint.create(engine, {
     mouse,
@@ -209,9 +183,8 @@
       },
     },
   });
-
   Composite.add(world, mouseConstraint);
 
+  // Keep the mouse in sync with rendering
   render.mouse = mouse;
-
 })();
