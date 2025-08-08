@@ -1,0 +1,67 @@
+/* Basic Reset */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #eef2f3;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.ui {
+  padding: 10px;
+  background: #2c3e50;
+  color: white;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.ui label,
+.ui select,
+.ui button,
+.ui input[type="range"] {
+  font-size: 1rem;
+}
+
+.shape-controls button {
+  cursor: pointer;
+  background: #3498db;
+  border: none;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 4px;
+  transition: background 0.3s ease;
+}
+
+.shape-controls button:hover {
+  background: #2980b9;
+}
+
+#world {
+  flex: 1;
+  display: block;
+  background: linear-gradient(to top, #8e44ad 0%, #c39bd3 100%);
+  width: 100vw;
+  height: 100%;
+  touch-action: manipulation; /* better mobile interaction */
+}
+
+/* Responsive UI */
+@media (max-width: 600px) {
+  .ui {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .shape-controls {
+    display: flex;
+    gap: 6px;
+  }
+}
