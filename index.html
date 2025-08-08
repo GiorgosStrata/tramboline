@@ -1,31 +1,37 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" >
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>2D Trampoline Simulator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Trampoline Simulator</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <div class="ui">
-    <label for="planet-select">Select Planet:</label>
-    <select id="planet-select">
-      <option value="earth">Earth</option>
-      <option value="moon">Moon</option>
-      <option value="jupiter">Jupiter</option>
-    </select>
-
-    <div class="shape-controls">
-      <button data-shape="circle">Add Ball (Circle)</button>
-      <button data-shape="square">Add Square</button>
-      <button data-shape="triangle">Add Triangle</button>
+    <div class="control-group">
+      <label for="planet-select">Planet:</label>
+      <select id="planet-select" aria-label="Select Planet">
+        <option value="earth">Earth</option>
+        <option value="moon">Moon</option>
+        <option value="jupiter">Jupiter</option>
+      </select>
     </div>
 
-    <label for="mass-slider">Mass: <span id="mass-value">5</span></label>
-    <input type="range" id="mass-slider" min="1" max="20" value="5" />
+    <div class="control-group shapes">
+      <button data-shape="circle" class="shape-btn selected" aria-pressed="true" title="Add Ball (Circle)">●</button>
+      <button data-shape="square" class="shape-btn" aria-pressed="false" title="Add Square">■</button>
+      <button data-shape="triangle" class="shape-btn" aria-pressed="false" title="Add Triangle">▲</button>
+    </div>
 
-    <label for="size-slider">Size: <span id="size-value">40</span></label>
-    <input type="range" id="size-slider" min="20" max="80" value="40" />
+    <div class="control-group slider-group">
+      <label for="mass-slider">Mass: <span id="mass-value">5</span></label>
+      <input type="range" id="mass-slider" min="1" max="20" value="5" />
+    </div>
+
+    <div class="control-group slider-group">
+      <label for="size-slider">Size: <span id="size-value">40</span></label>
+      <input type="range" id="size-slider" min="20" max="80" value="40" />
+    </div>
   </div>
 
   <canvas id="world"></canvas>
