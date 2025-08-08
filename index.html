@@ -2,465 +2,977 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>Trampoline Physics Simulator - Balanced</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Pixel Runner: Ultimate Escape</title>
 <style>
-  /* Reset & base */
+  /* Reset and base */
   * {
     margin: 0; padding: 0; box-sizing: border-box;
   }
-  body, html {
-    width: 100%; height: 100%;
-    overflow: hidden;
-    background: linear-gradient(to top, #1e2a47 0%, #4e668f 100%);
-    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  html, body {
+    height: 100%; background: #0a0a15; color: #eee;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     user-select: none;
-    touch-action: manipulation;
-    color: #ddd;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-
-  /* Container to hold 9:16 canvas */
-  #container {
-    width: 100vh; /* Use viewport height as width base */
-    max-width: 100vw;
-    aspect-ratio: 9 / 16;
-    background: #192a4f;
-    position: relative;
-    box-shadow: 0 0 30px rgba(78, 102, 143, 0.8);
-    border-radius: 20px;
     overflow: hidden;
-    display: flex;
-    flex-direction: column;
   }
-
-  /* UI container */
+  #game-container {
+    position: relative;
+    margin: 0 auto;
+    width: 400px;
+    height: 600px;
+    border: 3px solid #222;
+    background: linear-gradient(180deg, #001f3f, #000814);
+    box-shadow: 0 0 15px #0ff;
+  }
+  canvas {
+    display: block;
+    background: transparent;
+    image-rendering: pixelated;
+  }
   #ui {
     position: absolute;
-    top: 12px; left: 50%;
+    top: 10px;
+    left: 50%;
     transform: translateX(-50%);
-    background: rgba(30, 45, 70, 0.85);
-    border-radius: 14px;
-    display: flex;
-    gap: 16px;
-    padding: 10px 18px;
-    box-shadow: 0 4px 10px rgba(100, 130, 180, 0.5);
-    z-index: 1000;
-    flex-wrap: wrap;
-    justify-content: center;
-    user-select: none;
-  }
-
-  /* Shape buttons */
-  .shape-btn {
-    background: #324a77;
-    border: 2px solid #a3b8e2;
-    border-radius: 8px;
-    color: #a3b8e2;
-    padding: 8px 20px;
-    cursor: pointer;
-    font-weight: 600;
-    transition: all 0.25s ease;
-  }
-  .shape-btn.selected,
-  .shape-btn:hover {
-    background: #a3b8e2;
-    color: #324a77;
-    box-shadow: 0 0 10px #a3b8e2;
-  }
-
-  /* Planet selector */
-  select {
-    background: #324a77;
-    color: #a3b8e2;
-    border: 2px solid #a3b8e2;
-    border-radius: 8px;
-    padding: 6px 14px;
-    font-weight: 600;
-    cursor: pointer;
-    user-select: none;
-    transition: all 0.25s ease;
-  }
-  select:hover {
-    background: #a3b8e2;
-    color: #324a77;
-    box-shadow: 0 0 10px #a3b8e2;
-  }
-
-  /* Canvas styling */
-  canvas {
-    flex: 1;
-    background: #15263d;
-    touch-action: none;
-    display: block;
-  }
-
-  /* Info text */
-  #info {
-    position: absolute;
-    bottom: 10px; left: 50%;
-    transform: translateX(-50%);
-    color: #a3b8e2;
-    font-weight: 600;
-    font-size: 14px;
+    color: #0ff;
+    font-weight: 700;
+    font-size: 18px;
     font-family: monospace;
-    text-shadow: 0 0 3px #12233c;
+    text-shadow: 0 0 10px #0ff;
+    pointer-events: none;
     user-select: none;
-    z-index: 1000;
+    width: 100%;
+    text-align: center;
+  }
+  #health-bar-container {
+    position: absolute;
+    top: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 300px;
+    height: 20px;
+    background: #222;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 0 8px #0ff inset;
+  }
+  #health-bar {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, #00ff99, #009966);
+    transition: width 0.3s ease-out;
+  }
+  #score-multiplier {
+    position: absolute;
+    top: 65px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 16px;
+    color: #0f0;
+    font-family: monospace;
+    text-shadow: 0 0 8px #0f0;
+  }
+  #level-display {
+    position: absolute;
+    top: 85px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 16px;
+    color: #0ff;
+    font-family: monospace;
+    text-shadow: 0 0 8px #0ff;
+  }
+  #message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #0ff;
+    font-size: 32px;
+    font-weight: 900;
+    font-family: monospace;
+    text-align: center;
+    text-shadow: 0 0 15px #0ff;
+    display: none;
+    user-select: none;
+  }
+  #message button {
+    margin-top: 20px;
+    background: #0ff;
+    border: none;
+    padding: 12px 25px;
+    font-weight: 700;
+    font-family: monospace;
+    cursor: pointer;
+    color: #111;
+    border-radius: 10px;
+    transition: background 0.3s;
+    box-shadow: 0 0 12px #0ff;
+  }
+  #message button:hover {
+    background: #1ff;
+  }
+  #start-screen {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 100%;
+    max-width: 380px;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: #0ff;
+    font-family: monospace;
+    font-size: 30px;
+    text-shadow: 0 0 15px #0ff;
+    user-select: none;
+  }
+  #start-screen button {
+    margin-top: 30px;
+    background: #0ff;
+    border: none;
+    padding: 15px 40px;
+    font-weight: 900;
+    font-family: monospace;
+    cursor: pointer;
+    color: #111;
+    border-radius: 12px;
+    transition: background 0.3s;
+    box-shadow: 0 0 18px #0ff;
+    font-size: 22px;
+  }
+  #start-screen button:hover {
+    background: #1ff;
   }
 </style>
 </head>
 <body>
-
-<div id="container">
-  <div id="ui" aria-label="Controls">
-    <button class="shape-btn selected" data-shape="circle" aria-pressed="true" title="Circle shape">Circle</button>
-    <button class="shape-btn" data-shape="square" aria-pressed="false" title="Square shape">Square</button>
-    <select id="planet-select" aria-label="Select Planet Gravity">
-      <option value="earth" selected>Earth</option>
-      <option value="moon">Moon</option>
-      <option value="jupiter">Jupiter</option>
-    </select>
+  <div id="game-container">
+    <canvas id="game" width="400" height="600"></canvas>
+    <div id="ui">
+      <div>Score: <span id="score">0</span> | Lives: <span id="lives">3</span></div>
+      <div id="health-bar-container"><div id="health-bar"></div></div>
+      <div id="score-multiplier" style="display:none;">Multiplier: x1</div>
+      <div id="level-display">Level: 1</div>
+    </div>
+    <div id="message">
+      <div id="msg-text"></div>
+      <button id="restart-btn">Restart</button>
+    </div>
+    <div id="start-screen">
+      <div>PIXEL RUNNER: ULTIMATE ESCAPE</div>
+      <button id="start-btn">Start Game</button>
+    </div>
   </div>
-
-  <canvas id="game" role="main" aria-label="Trampoline physics simulation"></canvas>
-  <div id="info">Left click/tap: Place shape | Drag: Aim preview | Right click / Two-finger tap: Cancel placement</div>
-</div>
 
 <script>
 (() => {
-  const container = document.getElementById('container');
+  // ======================
+  // Constants and Settings
+  // ======================
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
 
-  // Physics params per planet
-  const gravityMap = {
-    earth: 0.6,
-    moon: 0.1,
-    jupiter: 1.6,
+  const UI = {
+    score: document.getElementById('score'),
+    lives: document.getElementById('lives'),
+    healthBar: document.getElementById('health-bar'),
+    multiplier: document.getElementById('score-multiplier'),
+    level: document.getElementById('level-display'),
   };
 
-  // Current physics gravity
-  let gravity = gravityMap.earth;
+  const message = document.getElementById('message');
+  const msgText = document.getElementById('msg-text');
+  const restartBtn = document.getElementById('restart-btn');
+  const startScreen = document.getElementById('start-screen');
+  const startBtn = document.getElementById('start-btn');
 
-  // Trampoline params
-  let trampoline = {
-    x: 0,
-    y: 0,
-    width: 0,
-    height: 30,
-    baseHeight: 30,
-    squash: 0,
-    squashSpeed: 0.3,
-  };
+  const WIDTH = canvas.width;
+  const HEIGHT = canvas.height;
 
-  // Shapes array
-  const shapes = [];
+  // Player config
+  const PLAYER_SIZE = 24;
+  const PLAYER_SPEED = 6;
+  const PLAYER_MAX_HEALTH = 100;
+  const PLAYER_SHOOT_COOLDOWN = 300; // ms
 
-  // Currently selected shape
-  let currentShape = 'circle';
+  // Enemy config
+  const ENEMY_SIZE = 24;
 
-  // Placement preview data
-  let placingShape = null; // {x, y, type}
-  let isPlacing = false;
+  // Bullet config
+  const BULLET_SIZE = 6;
+  const BULLET_SPEED = 9;
 
-  // Track pointer position for drag aiming
-  let pointerStart = null;
-  let pointerCurrent = null;
+  // Power-up config
+  const POWERUP_SIZE = 20;
+  const POWERUP_DURATION = 7000; // ms
 
-  // Responsive resize inside container with 9:16 aspect ratio
-  function resize() {
-    canvas.width = container.clientWidth;
-    canvas.height = container.clientHeight;
-    trampoline.width = canvas.width * 0.5;
-    trampoline.x = canvas.width / 2;
-    trampoline.y = canvas.height - trampoline.height;
+  // Background stars count
+  const STAR_COUNT = 80;
+
+  // ===================
+  // Game state variables
+  // ===================
+  let keys = {};
+  let gameRunning = false;
+  let lastFrameTime = 0;
+  let deltaTime = 0;
+
+  let score = 0;
+  let lives = 3;
+  let level = 1;
+  let playerHealth = PLAYER_MAX_HEALTH;
+  let scoreMultiplier = 1;
+  let multiplierTimer = 0;
+
+  let highScore = localStorage.getItem('pixelRunnerHighScore') || 0;
+
+  // Player shooting cooldown timer
+  let canShoot = true;
+  let shootCooldownTimer = 0;
+
+  // Game objects arrays
+  let enemies = [];
+  let enemyBullets = [];
+  let playerBullets = [];
+  let powerUps = [];
+  let particles = [];
+  let stars = [];
+
+  // Effect flags
+  let shieldActive = false;
+  let shieldTimer = 0;
+
+  let slowActive = false;
+  let slowTimer = 0;
+
+  // ===================
+  // Utility functions
+  // ===================
+  function randomRange(min, max) {
+    return Math.random() * (max - min) + min;
   }
-  window.addEventListener('resize', resize);
-  resize();
 
-  // Select shape UI handlers
-  const shapeButtons = document.querySelectorAll('.shape-btn');
-  shapeButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      shapeButtons.forEach(b => {
-        b.classList.remove('selected');
-        b.setAttribute('aria-pressed', 'false');
-      });
-      btn.classList.add('selected');
-      btn.setAttribute('aria-pressed', 'true');
-      currentShape = btn.dataset.shape;
-      cancelPlacement();
-    });
-  });
+  function clamp(num, min, max) {
+    return Math.min(Math.max(num, min), max);
+  }
 
-  // Planet selection UI
-  const planetSelect = document.getElementById('planet-select');
-  planetSelect.addEventListener('change', e => {
-    gravity = gravityMap[e.target.value];
-    // Change background based on planet
-    switch(e.target.value) {
-      case 'earth':
-        container.style.background = 'linear-gradient(to top, #1e2a47 0%, #4e668f 100%)';
-        break;
-      case 'moon':
-        container.style.background = 'linear-gradient(to top, #3a3a4a 0%, #888899 100%)';
-        break;
-      case 'jupiter':
-        container.style.background = 'linear-gradient(to top, #553311 0%, #aa7744 100%)';
-        break;
+  function lerp(start, end, t) {
+    return start + (end - start) * t;
+  }
+
+  // ===================
+  // Classes
+  // ===================
+
+  class Star {
+    constructor() {
+      this.reset();
     }
-  });
+    reset() {
+      this.x = Math.random() * WIDTH;
+      this.y = Math.random() * HEIGHT;
+      this.size = Math.random() * 1.5 + 0.3;
+      this.speed = this.size * 0.5;
+      this.opacity = this.size * 0.6;
+    }
+    update() {
+      this.y += this.speed;
+      if (this.y > HEIGHT) {
+        this.x = Math.random() * WIDTH;
+        this.y = 0;
+        this.size = Math.random() * 1.5 + 0.3;
+        this.speed = this.size * 0.5;
+        this.opacity = this.size * 0.6;
+      }
+    }
+    draw() {
+      ctx.fillStyle = `rgba(255, 255, 255, ${this.opacity})`;
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
 
-  // Shape class
-  class Shape {
-    constructor(x, y, type) {
+  class Particle {
+    constructor(x, y, color, lifetime = 600) {
       this.x = x;
       this.y = y;
+      this.radius = randomRange(2, 5);
+      this.color = color;
+      this.lifetime = lifetime;
+      this.age = 0;
+      this.speedX = randomRange(-1.5, 1.5);
+      this.speedY = randomRange(-3, -1);
+      this.gravity = 0.1;
+      this.alpha = 1;
+    }
+    update(dt) {
+      this.age += dt;
+      if (this.age >= this.lifetime) return false;
+
+      this.x += this.speedX;
+      this.y += this.speedY;
+      this.speedY += this.gravity;
+      this.alpha = 1 - this.age / this.lifetime;
+      this.radius *= 0.97;
+
+      return true;
+    }
+    draw() {
+      ctx.save();
+      ctx.globalAlpha = this.alpha;
+      ctx.fillStyle = this.color;
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  class Player {
+    constructor() {
+      this.width = PLAYER_SIZE;
+      this.height = PLAYER_SIZE;
+      this.x = WIDTH / 2 - this.width / 2;
+      this.y = HEIGHT - this.height - 15;
+      this.color = '#0ff';
+      this.speed = PLAYER_SPEED;
+      this.health = PLAYER_MAX_HEALTH;
+      this.shootCooldown = 0;
+      this.isDead = false;
+    }
+    move(dt) {
+      if (keys['ArrowLeft'] || keys['a']) this.x -= this.speed;
+      if (keys['ArrowRight'] || keys['d']) this.x += this.speed;
+
+      // clamp inside canvas
+      this.x = clamp(this.x, 0, WIDTH - this.width);
+    }
+    update(dt) {
+      this.move(dt);
+      if (!canShoot) {
+        shootCooldownTimer += dt;
+        if (shootCooldownTimer >= PLAYER_SHOOT_COOLDOWN) {
+          canShoot = true;
+          shootCooldownTimer = 0;
+        }
+      }
+      if (shieldActive) {
+        shieldTimer -= dt;
+        if (shieldTimer <= 0) {
+          shieldActive = false;
+        }
+      }
+    }
+    shoot() {
+      if (canShoot && !this.isDead) {
+        const bulletX = this.x + this.width / 2 - BULLET_SIZE / 2;
+        const bulletY = this.y - BULLET_SIZE;
+        playerBullets.push(new Bullet(bulletX, bulletY, -BULLET_SPEED, 'player'));
+        canShoot = false;
+        shootCooldownTimer = 0;
+        playSound('shoot');
+      }
+    }
+    draw() {
+      // Player body
+      ctx.fillStyle = this.color;
+      ctx.fillRect(this.x, this.y, this.width, this.height);
+
+      // Shield effect
+      if (shieldActive) {
+        ctx.strokeStyle = 'cyan';
+        ctx.lineWidth = 3;
+        ctx.shadowColor = '#0ff';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.ellipse(
+          this.x + this.width / 2,
+          this.y + this.height / 2,
+          this.width,
+          this.height,
+          0,
+          0,
+          Math.PI * 2
+        );
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
+    }
+  }
+
+  class Enemy {
+    constructor(type = 0) {
+      this.width = ENEMY_SIZE;
+      this.height = ENEMY_SIZE;
+      this.x = randomRange(10, WIDTH - ENEMY_SIZE - 10);
+      this.y = -ENEMY_SIZE;
       this.type = type;
-      this.size = 40;
-      this.mass = 1; // could expand later
-      this.vx = 0;  // no horizontal drift anymore
-      this.vy = 0;
-      this.color = type === 'circle' ? '#7bb4e2' : '#9a8fcc';
-      this.bounceEnergyLoss = 0.75; // energy lost each bounce
-    }
+      this.speed = 1 + level * 0.2 + Math.random() * 0.5;
+      this.color = '#f00';
+      this.health = 1;
+      this.shootCooldown = 0;
+      this.canShoot = false;
+      this.dead = false;
 
-    update() {
-      // Apply gravity
-      this.vy += gravity;
-
-      // Move
-      this.x += this.vx;
-      this.y += this.vy;
-
-      // Collide with walls (only vertical motion, but keep horizontal inside)
-      if(this.x - this.size/2 < 0) {
-        this.x = this.size/2;
-      }
-      if(this.x + this.size/2 > canvas.width) {
-        this.x = canvas.width - this.size/2;
-      }
-
-      // Floor collision
-      if(this.y + this.size/2 > canvas.height) {
-        this.y = canvas.height - this.size/2;
-        if(Math.abs(this.vy) > 1) {
-          this.vy = -Math.abs(this.vy) * this.bounceEnergyLoss;
-          triggerTrampolineSquash();
-        } else {
-          this.vy = 0;
-        }
-      }
-
-      // Trampoline collision (AABB + circle approximation)
-      if(
-        this.x > trampoline.x - trampoline.width/2 &&
-        this.x < trampoline.x + trampoline.width/2 &&
-        this.y + this.size/2 > trampoline.y - trampoline.height &&
-        this.y + this.size/2 < trampoline.y &&
-        this.vy > 0
-      ) {
-        this.y = trampoline.y - trampoline.height - this.size/2;
-        if(Math.abs(this.vy) > 1) {
-          this.vy = -Math.abs(this.vy) * this.bounceEnergyLoss;
-          triggerTrampolineSquash();
-        } else {
-          this.vy = 0;
-        }
+      // Customize per type
+      switch (this.type) {
+        case 0:
+          this.color = '#ff4444'; // basic red
+          this.health = 1;
+          this.canShoot = false;
+          this.speed *= 1;
+          break;
+        case 1:
+          this.color = '#ffaa00'; // orange, shoots
+          this.health = 2;
+          this.canShoot = true;
+          this.speed *= 0.7;
+          break;
+        case 2:
+          this.color = '#cc00ff'; // purple, fast and weak
+          this.health = 1;
+          this.canShoot = false;
+          this.speed *= 2;
+          break;
+        case 3:
+          this.color = '#00ccff'; // blue, tank enemy
+          this.health = 4;
+          this.canShoot = true;
+          this.speed *= 0.5;
+          break;
+        default:
+          this.color = '#f00';
+          this.health = 1;
+          this.canShoot = false;
       }
     }
-
+    update(dt) {
+      if (slowActive) {
+        this.y += this.speed * 0.3;
+      } else {
+        this.y += this.speed;
+      }
+      if (this.canShoot) {
+        this.shootCooldown -= dt;
+        if (this.shootCooldown <= 0) {
+          if (Math.random() < 0.01 * level) { // shooting chance increases with level
+            this.shootCooldown = 1500;
+            this.shoot();
+          }
+        }
+      }
+      if (this.y > HEIGHT) {
+        this.dead = true;
+        if (!shieldActive) {
+          loseLife();
+        }
+      }
+    }
+    shoot() {
+      // Shoot bullet downward
+      let bx = this.x + this.width / 2 - BULLET_SIZE / 2;
+      let by = this.y + this.height;
+      enemyBullets.push(new Bullet(bx, by, BULLET_SPEED, 'enemy'));
+      playSound('enemyShoot');
+    }
+    takeDamage() {
+      if (shieldActive) return false;
+      this.health--;
+      if (this.health <= 0) {
+        this.dead = true;
+        score += 10 * scoreMultiplier;
+        multiplierTimer += 2000;
+        playSound('enemyDead');
+        for (let i=0; i<10; i++) {
+          particles.push(new Particle(this.x + this.width/2, this.y + this.height/2, this.color));
+        }
+        // Chance to spawn powerup on death
+        if (Math.random() < 0.12) {
+          powerUps.push(new PowerUp(this.x + this.width/2, this.y + this.height/2));
+        }
+        updateScoreUI();
+        return true;
+      }
+      playSound('enemyHit');
+      return false;
+    }
     draw() {
       ctx.fillStyle = this.color;
-      ctx.strokeStyle = '#233650';
-      ctx.lineWidth = 2;
+      ctx.fillRect(this.x, this.y, this.width, this.height);
+
+      // Health bar for enemies with >1 health
+      if (this.health > 1) {
+        ctx.fillStyle = '#222';
+        ctx.fillRect(this.x, this.y - 8, this.width, 5);
+        ctx.fillStyle = '#f00';
+        ctx.fillRect(this.x, this.y - 8, (this.health / (this.type === 3 ? 4 : 2)) * this.width, 5);
+      }
+    }
+  }
+
+  class Bullet {
+    constructor(x, y, speedY, owner) {
+      this.x = x;
+      this.y = y;
+      this.speedY = speedY;
+      this.size = BULLET_SIZE;
+      this.owner = owner; // 'player' or 'enemy'
+      this.dead = false;
+      this.color = (owner === 'player') ? '#0ff' : '#f00';
+    }
+    update(dt) {
+      this.y += this.speedY;
+      if (this.y < -this.size || this.y > HEIGHT + this.size) {
+        this.dead = true;
+      }
+    }
+    draw() {
+      ctx.fillStyle = this.color;
+      ctx.fillRect(this.x, this.y, this.size, this.size);
+    }
+  }
+
+  class PowerUp {
+    constructor(x, y) {
+      this.x = x - POWERUP_SIZE / 2;
+      this.y = y;
+      this.size = POWERUP_SIZE;
+      this.type = this.randomType();
+      this.color = this.getColor();
+      this.speed = 2;
+      this.collected = false;
+    }
+    randomType() {
+      const types = ['shield', 'slow', 'multiplier', 'heal'];
+      return types[Math.floor(Math.random() * types.length)];
+    }
+    getColor() {
+      switch (this.type) {
+        case 'shield': return '#0ff';
+        case 'slow': return '#f0f';
+        case 'multiplier': return '#0f0';
+        case 'heal': return '#ff0';
+        default: return '#fff';
+      }
+    }
+    update(dt) {
+      this.y += this.speed;
+      if (this.y > HEIGHT) this.collected = true;
+      // Check collision with player
+      if (!this.collected && rectIntersect(this.x, this.y, this.size, this.size, player.x, player.y, player.width, player.height)) {
+        this.activate();
+        this.collected = true;
+        playSound('powerup');
+      }
+    }
+    activate() {
+      switch(this.type) {
+        case 'shield':
+          shieldActive = true;
+          shieldTimer = POWERUP_DURATION;
+          break;
+        case 'slow':
+          slowActive = true;
+          slowTimer = POWERUP_DURATION;
+          break;
+        case 'multiplier':
+          scoreMultiplier = 3;
+          multiplierTimer = POWERUP_DURATION;
+          UI.multiplier.style.display = 'block';
+          break;
+        case 'heal':
+          playerHealth = clamp(playerHealth + 30, 0, PLAYER_MAX_HEALTH);
+          break;
+      }
+    }
+    draw() {
+      ctx.fillStyle = this.color;
       ctx.beginPath();
-      if(this.type === 'circle') {
-        ctx.ellipse(this.x, this.y, this.size/2, this.size/2, 0, 0, 2 * Math.PI);
-      } else if(this.type === 'square') {
-        ctx.rect(this.x - this.size/2, this.y - this.size/2, this.size, this.size);
-      }
+      ctx.arc(this.x + this.size / 2, this.y + this.size / 2, this.size / 2, 0, Math.PI * 2);
       ctx.fill();
-      ctx.stroke();
+
+      ctx.fillStyle = '#000';
+      ctx.font = 'bold 16px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      const letter = {
+        shield: 'S',
+        slow: 'F',
+        multiplier: 'M',
+        heal: '+',
+      }[this.type];
+
+      ctx.fillText(letter, this.x + this.size / 2, this.y + this.size / 2);
     }
   }
 
-  // Squash trampoline animation trigger
-  function triggerTrampolineSquash() {
-    trampoline.squash = 1;
+  // ================
+  // Helper functions
+  // ================
+
+  // Axis-aligned rectangle collision
+  function rectIntersect(x1, y1, w1, h1, x2, y2, w2, h2) {
+    return !(x2 > x1 + w1 ||
+             x2 + w2 < x1 ||
+             y2 > y1 + h1 ||
+             y2 + h2 < y1);
   }
 
-  // Main draw trampoline function
-  function drawTrampoline() {
-    const baseY = trampoline.y;
-    const width = trampoline.width;
-    const height = trampoline.height;
-
-    // Squash decay
-    trampoline.squash *= 0.85;
-    if(trampoline.squash < 0.01) trampoline.squash = 0;
-
-    // Squash height change
-    const squashHeight = height + trampoline.squash * 15;
-
-    // Draw trampoline surface (elastic-like)
-    ctx.fillStyle = '#4e7ac7';
-    ctx.strokeStyle = '#2c4b7a';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-
-    // Left corner
-    ctx.moveTo(trampoline.x - width/2, baseY);
-    // Bezier curve for trampoline stretch
-    ctx.bezierCurveTo(
-      trampoline.x - width/4, baseY + squashHeight,
-      trampoline.x + width/4, baseY + squashHeight,
-      trampoline.x + width/2, baseY
-    );
-
-    // Bottom line to close shape
-    ctx.lineTo(trampoline.x + width/2, baseY + height);
-    ctx.lineTo(trampoline.x - width/2, baseY + height);
-    ctx.closePath();
-
-    ctx.fill();
-    ctx.stroke();
-
-    // Draw trampoline legs
-    ctx.strokeStyle = '#22375e';
-    ctx.lineWidth = 4;
-    const legHeight = 60;
-    ctx.beginPath();
-    ctx.moveTo(trampoline.x - width/2 + 10, baseY + height);
-    ctx.lineTo(trampoline.x - width/2 + 10, baseY + height + legHeight);
-    ctx.moveTo(trampoline.x + width/2 - 10, baseY + height);
-    ctx.lineTo(trampoline.x + width/2 - 10, baseY + height + legHeight);
-    ctx.stroke();
-  }
-
-  // Placement preview
-  function drawPlacementPreview() {
-    if(!isPlacing || !placingShape) return;
-    const x = pointerCurrent ? pointerCurrent.x : placingShape.x;
-    const y = pointerCurrent ? pointerCurrent.y : placingShape.y;
-    ctx.save();
-    ctx.globalAlpha = 0.5;
-    ctx.fillStyle = placingShape.type === 'circle' ? '#a0c0ff' : '#c9baff';
-    ctx.strokeStyle = '#4a6a9f';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    const size = 40;
-    if(placingShape.type === 'circle') {
-      ctx.ellipse(x, y, size/2, size/2, 0, 0, 2 * Math.PI);
-    } else if(placingShape.type === 'square') {
-      ctx.rect(x - size/2, y - size/2, size, size);
-    }
-    ctx.fill();
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  // Clear cancel placement
-  function cancelPlacement() {
-    isPlacing = false;
-    placingShape = null;
-    pointerStart = null;
-    pointerCurrent = null;
-  }
-
-  // Main loop
-  function loop() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Draw trampoline
-    drawTrampoline();
-
-    // Update + draw all shapes
-    shapes.forEach(shape => {
-      shape.update();
-      shape.draw();
-    });
-
-    // Draw preview if placing
-    drawPlacementPreview();
-
-    requestAnimationFrame(loop);
-  }
-  loop();
-
-  // Input handling for placing shapes
-  function getPointerPos(evt) {
-    let rect = canvas.getBoundingClientRect();
-    let x, y;
-    if(evt.touches && evt.touches.length > 0) {
-      x = evt.touches[0].clientX - rect.left;
-      y = evt.touches[0].clientY - rect.top;
+  function loseLife() {
+    if (shieldActive) return; // shield blocks life loss
+    lives--;
+    updateLivesUI();
+    if (lives <= 0) {
+      gameOver();
     } else {
-      x = evt.clientX - rect.left;
-      y = evt.clientY - rect.top;
+      // Reset player health and shield off
+      playerHealth = PLAYER_MAX_HEALTH;
+      shieldActive = false;
+      shieldTimer = 0;
+      slowActive = false;
+      slowTimer = 0;
+      scoreMultiplier = 1;
+      multiplierTimer = 0;
+      UI.multiplier.style.display = 'none';
     }
-    // Clamp inside canvas
-    x = Math.min(Math.max(0, x), canvas.width);
-    y = Math.min(Math.max(0, y), canvas.height);
-    return {x, y};
   }
 
-  // Left mouse / tap down starts placement
-  canvas.addEventListener('pointerdown', (e) => {
-    if(e.button !== 2) { // Not right click
-      pointerStart = getPointerPos(e);
-      pointerCurrent = pointerStart;
-      placingShape = { x: pointerStart.x, y: pointerStart.y, type: currentShape };
-      isPlacing = true;
-      e.preventDefault();
+  function updateScoreUI() {
+    UI.score.textContent = score;
+  }
+  function updateLivesUI() {
+    UI.lives.textContent = lives;
+  }
+  function updateHealthUI() {
+    let pct = playerHealth / PLAYER_MAX_HEALTH * 100;
+    UI.healthBar.style.width = pct + '%';
+    if (pct > 60) {
+      UI.healthBar.style.background = 'linear-gradient(90deg, #00ff99, #009966)';
+    } else if (pct > 30) {
+      UI.healthBar.style.background = 'linear-gradient(90deg, #ffaa00, #aa6600)';
+    } else {
+      UI.healthBar.style.background = 'linear-gradient(90deg, #ff3300, #660000)';
     }
-  }, {passive:false});
+  }
+  function updateLevelUI() {
+    UI.level.textContent = 'Level: ' + level;
+  }
 
-  // Drag to move preview
-  canvas.addEventListener('pointermove', (e) => {
-    if(isPlacing) {
-      pointerCurrent = getPointerPos(e);
-      placingShape.x = pointerCurrent.x;
-      placingShape.y = pointerCurrent.y;
+  function resetGame() {
+    score = 0;
+    lives = 3;
+    level = 1;
+    playerHealth = PLAYER_MAX_HEALTH;
+    scoreMultiplier = 1;
+    multiplierTimer = 0;
+    shieldActive = false;
+    shieldTimer = 0;
+    slowActive = false;
+    slowTimer = 0;
+    canShoot = true;
+    shootCooldownTimer = 0;
+
+    enemies = [];
+    enemyBullets = [];
+    playerBullets = [];
+    powerUps = [];
+    particles = [];
+
+    updateScoreUI();
+    updateLivesUI();
+    updateHealthUI();
+    updateLevelUI();
+
+    player.isDead = false;
+    player.x = WIDTH / 2 - player.width / 2;
+    player.y = HEIGHT - player.height - 15;
+
+    message.style.display = 'none';
+    startScreen.style.display = 'none';
+    gameRunning = true;
+    lastFrameTime = performance.now();
+
+    spawnEnemiesForLevel();
+  }
+
+  function gameOver() {
+    gameRunning = false;
+    message.style.display = 'block';
+    msgText.innerHTML = `GAME OVER<br><br>Final Score: ${score}<br>High Score: ${highScore}`;
+    if (score > highScore) {
+      highScore = score;
+      localStorage.setItem('pixelRunnerHighScore', highScore);
+      msgText.innerHTML += '<br><br><span style="color:#0f0;">NEW HIGH SCORE!</span>';
     }
-  }, {passive:true});
+  }
 
-  // Release left click to place shape
-  canvas.addEventListener('pointerup', (e) => {
-    if(isPlacing && e.button !== 2) {
-      // Place shape at pointerCurrent.x and y, but always start above trampoline for fall
-      let placeX = placingShape.x;
-      // Start above trampoline by 50px (to see bounce)
-      let placeY = trampoline.y - trampoline.height - 50;
+  // Spawn enemies based on level
+  function spawnEnemiesForLevel() {
+    let count = 5 + level * 2;
+    for (let i = 0; i < count; i++) {
+      let type = 0;
+      if (level >= 3 && Math.random() < 0.3) type = 1;
+      if (level >= 5 && Math.random() < 0.15) type = 2;
+      if (level >= 8 && Math.random() < 0.1) type = 3;
+      enemies.push(new Enemy(type));
+    }
+  }
 
-      shapes.push(new Shape(placeX, placeY, placingShape.type));
+  // ================
+  // Particle effects
+  // ================
 
-      cancelPlacement();
+  class Particle {
+    constructor(x, y, color) {
+      this.x = x;
+      this.y = y;
+      this.color = color;
+      this.radius = randomRange(2, 5);
+      this.vx = (Math.random() - 0.5) * 4;
+      this.vy = (Math.random() - 0.5) * 4;
+      this.alpha = 1;
+      this.decay = 0.02;
+    }
+    update() {
+      this.x += this.vx;
+      this.y += this.vy;
+      this.alpha -= this.decay;
+      if (this.alpha < 0) this.alpha = 0;
+    }
+    draw() {
+      ctx.save();
+      ctx.globalAlpha = this.alpha;
+      ctx.fillStyle = this.color;
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  // ================
+  // Sound manager
+  // ================
+
+  const sounds = {
+    shoot: new Audio('sounds/shoot.wav'),
+    enemyShoot: new Audio('sounds/enemyShoot.wav'),
+    enemyHit: new Audio('sounds/enemyHit.wav'),
+    enemyDead: new Audio('sounds/enemyDead.wav'),
+    powerup: new Audio('sounds/powerup.wav'),
+    damage: new Audio('sounds/damage.wav'),
+  };
+
+  function playSound(name) {
+    if (!sounds[name]) return;
+    sounds[name].currentTime = 0;
+    sounds[name].play();
+  }
+
+  // ================
+  // Input handling
+  // ================
+
+  let keys = {};
+  window.addEventListener('keydown', (e) => {
+    keys[e.key.toLowerCase()] = true;
+    if (!gameRunning && e.key === 'Enter') {
+      resetGame();
     }
   });
-
-  // Right click or two-finger tap to cancel
-  canvas.addEventListener('contextmenu', (e) => {
-    cancelPlacement();
-    e.preventDefault();
+  window.addEventListener('keyup', (e) => {
+    keys[e.key.toLowerCase()] = false;
   });
 
-  // Mobile two-finger tap cancel
-  let lastTouchTime = 0;
-  canvas.addEventListener('touchstart', (e) => {
-    if(e.touches.length === 2) {
-      let now = Date.now();
-      if(now - lastTouchTime < 500) {
-        cancelPlacement();
+  // ================
+  // UI Elements
+  // ================
+
+  const UI = {
+    score: document.getElementById('score'),
+    lives: document.getElementById('lives'),
+    healthBar: document.getElementById('healthBar'),
+    level: document.getElementById('level'),
+    multiplier: document.getElementById('multiplier'),
+  };
+
+  const message = document.getElementById('message');
+  const msgText = document.getElementById('msgText');
+  const startScreen = document.getElementById('startScreen');
+
+  // ================
+  // Game loop
+  // ================
+
+  let lastFrameTime = performance.now();
+
+  function gameLoop(now) {
+    if (!gameRunning) {
+      requestAnimationFrame(gameLoop);
+      return;
+    }
+    let dt = now - lastFrameTime;
+    lastFrameTime = now;
+
+    ctx.clearRect(0, 0, WIDTH, HEIGHT);
+
+    player.update(dt);
+    player.draw();
+
+    // Update and draw player bullets
+    for (let i = playerBullets.length - 1; i >= 0; i--) {
+      let b = playerBullets[i];
+      b.update(dt);
+      b.draw();
+
+      // Check collision with enemies
+      for (let e of enemies) {
+        if (!e.dead && rectIntersect(b.x, b.y, b.size, b.size, e.x, e.y, e.width, e.height)) {
+          b.dead = true;
+          e.takeDamage();
+          break;
+        }
       }
-      lastTouchTime = now;
+      if (b.dead) playerBullets.splice(i, 1);
     }
-  });
 
-})();
+    // Update and draw enemy bullets
+    for (let i = enemyBullets.length - 1; i >= 0; i--) {
+      let b = enemyBullets[i];
+      b.update(dt);
+      b.draw();
+
+      // Check collision with player
+      if (!player.isDead && rectIntersect(b.x, b.y, b.size, b.size, player.x, player.y, player.width, player.height)) {
+        b.dead = true;
+        if (!shieldActive) {
+          playerHealth -= 10;
+          playSound('damage');
+          updateHealthUI();
+          if (playerHealth <= 0) {
+            player.isDead = true;
+            loseLife();
+          }
+        }
+      }
+      if (b.dead) enemyBullets.splice(i, 1);
+    }
+
+    // Update and draw enemies
+    for (let i = enemies.length - 1; i >= 0; i--) {
+      let e = enemies[i];
+      e.update(dt);
+      e.draw();
+      if (e.dead) enemies.splice(i, 1);
+    }
+
+    // Update and draw power-ups
+    for (let i = powerUps.length - 1; i >= 0; i--) {
+      let p = powerUps[i];
+      p.update(dt);
+      p.draw();
+      if (p.collected) powerUps.splice(i, 1);
+    }
+
+    // Update and draw particles
+    for (let i = particles.length - 1; i >= 0; i--) {
+      let p = particles[i];
+      p.update();
+      if (p.alpha <= 0) {
+        particles.splice(i, 1);
+      } else {
+        p.draw();
+      }
+    }
+
+    // Update power-up timers
+    if (shieldActive) {
+      shieldTimer -= dt;
+      if (shieldTimer <= 0) {
+        shieldActive = false;
+      }
+    }
+    if (slowActive) {
+      slowTimer -= dt;
+      if (slowTimer <= 0) {
+        slowActive = false;
+      }
+    }
+    if (scoreMultiplier > 1) {
+      multiplierTimer -= dt;
+      if (multiplierTimer <= 0) {
+        scoreMultiplier = 1;
+        UI.multiplier.style.display = 'none';
+      }
+    }
+
+    // Update multiplier UI position and animation
+    if (scoreMultiplier > 1) {
+      UI.multiplier.style.transform = `scale(${1 + 0.3 * Math.sin(now / 150)})`;
+    }
+
+    // Check for level up
+    if (score >= level * 100) {
+      level++;
+      spawnEnemiesForLevel();
+      updateLevelUI();
+      playSound('levelUp');
+    }
+
+    // Draw HUD
+    drawHUD();
+
+    if (!player.isDead) {
+      handleInput(dt);
+    }
+
+    requestAnimationFrame(gameLoop);
+  }
+
+  // Draw heads-up display
+  function drawHUD() {
+    // Background for health bar
+    ctx.fillStyle = '#222';
+    ctx.fillRect(10, HEIGHT - 30, 200, 20);
+
+    // Health bar
+    ctx.fillStyle = '#0f0';
+    ctx.fillRect(10, HEIGHT - 30, 2 * playerHealth, 20);
+
+    // Lives display
+    ctx.fillStyle = '#fff';
+    ctx.font = '20px monospace';
+    ctx.fillText('Lives: ' + lives, 10, HEIGHT - 40);
+
+    // Score display
+    ctx.fillText('Score: ' + score, WIDTH - 150, 30);
+
+    // Level display
+    ctx.fillText('Level: ' + level, WIDTH - 150, 60);
+  }
+
+  // Handle keyboard input
+  function handleInput(dt) {
+    const speed = PLAYER_SPEED * dt / 16;
+    if (keys['arrowleft'] || keys['a']) {
+      player.x -= speed;
+      if (player.x < 0) player.x = 0;
+    }
+    if (keys['arrowright'] || keys['d']) {
+      player.x += speed;
+      if (player.x + player.width > WIDTH) player.x = WIDTH - player.width;
+    }
+    if (keys[' '] || keys['arrowup'] || keys['w']) {
+      player.shoot();
+    }
+  }
+
+  // Start game when ready
+  resetGame();
+  requestAnimationFrame(gameLoop);
 </script>
+
 </body>
 </html>
