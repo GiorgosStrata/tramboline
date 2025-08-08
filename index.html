@@ -1,42 +1,207 @@
 <!DOCTYPE html>
-<html lang="en" >
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>Trampoline Simulator</title>
-  <link rel="stylesheet" href="styles.css" />
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Simple Trampoline Physics</title>
+<style>
+  * {
+    margin: 0; padding: 0; box-sizing: border-box;
+  }
+  body, html {
+    width: 100%; height: 100%;
+    background: #111;
+    overflow: hidden;
+    user-select: none;
+    touch-action: manipulation;
+    font-family: sans-serif;
+    color: #eee;
+  }
+  #ui {
+    position: fixed;
+    top: 10px; left: 50%; transform: translateX(-50%);
+    background: rgba(0,0,0,0.7);
+    padding: 10px 20px;
+    border-radius: 12px;
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    z-index: 10;
+  }
+  #ui label {
+    cursor: pointer;
+  }
+  #ui input[type="radio"] {
+    margin-right: 5px;
+  }
+  canvas {
+    display: block;
+    background: linear-gradient(to top, #222 0%, #000 100%);
+  }
+</style>
 </head>
 <body>
-  <div class="ui">
-    <div class="control-group">
-      <label for="planet-select">Planet:</label>
-      <select id="planet-select" aria-label="Select Planet">
-        <option value="earth">Earth</option>
-        <option value="moon">Moon</option>
-        <option value="jupiter">Jupiter</option>
-      </select>
-    </div>
 
-    <div class="control-group shapes">
-      <button data-shape="circle" class="shape-btn selected" aria-pressed="true" title="Add Ball (Circle)">●</button>
-      <button data-shape="square" class="shape-btn" aria-pressed="false" title="Add Square">■</button>
-      <button data-shape="triangle" class="shape-btn" aria-pressed="false" title="Add Triangle">▲</button>
-    </div>
+<div id="ui">
+  <label><input type="radio" name="shape" value="circle" checked /> Circle</label>
+  <label><input type="radio" name="shape" value="square" /> Square</label>
+</div>
 
-    <div class="control-group slider-group">
-      <label for="mass-slider">Mass: <span id="mass-value">5</span></label>
-      <input type="range" id="mass-slider" min="1" max="20" value="5" />
-    </div>
+<canvas id="game"></canvas>
 
-    <div class="control-group slider-group">
-      <label for="size-slider">Size: <span id="size-value">40</span></label>
-      <input type="range" id="size-slider" min="20" max="80" value="40" />
-    </div>
-  </div>
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
 
-  <canvas id="world"></canvas>
+  // Resize canvas full screen
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
 
-  <script src="https://cdn.jsdelivr.net/npm/matter-js@0.19.0/build/matter.min.js"></script>
-  <script src="app.js"></script>
+  // Gravity and physics params
+  const gravity = 0.6;
+  const bounceFactor = 0.7; // energy retained after bounce
+  const trampolineHeight = 30;
+  const trampolineWidthRatio = 0.5; // half screen width
+
+  // Trampoline position
+  const trampoline = {
+    x: canvas.width / 2,
+    y: canvas.height - trampolineHeight,
+    width: canvas.width * trampolineWidthRatio,
+    height: trampolineHeight,
+  };
+
+  // Shapes array
+  const shapes = [];
+
+  // Current shape type selected
+  let currentShape = 'circle';
+
+  // UI shape selector
+  document.querySelectorAll('input[name="shape"]').forEach(radio => {
+    radio.addEventListener('change', e => {
+      currentShape = e.target.value;
+    });
+  });
+
+  // Shape class
+  class Shape {
+    constructor(x, y, type) {
+      this.x = x;
+      this.y = y;
+      this.vx = (Math.random() - 0.5) * 4; // random horizontal speed
+      this.vy = 0;
+      this.size = 40;
+      this.type = type;
+      this.color = type === 'circle' ? '#4caf50' : '#2196f3';
+    }
+
+    update() {
+      // Gravity
+      this.vy += gravity;
+
+      // Move
+      this.x += this.vx;
+      this.y += this.vy;
+
+      // Bounce off floor
+      if (this.y + this.size/2 > canvas.height) {
+        this.y = canvas.height - this.size/2;
+        this.vy = -this.vy * bounceFactor;
+      }
+
+      // Bounce off walls
+      if (this.x - this.size/2 < 0) {
+        this.x = this.size/2;
+        this.vx = -this.vx * bounceFactor;
+      }
+      if (this.x + this.size/2 > canvas.width) {
+        this.x = canvas.width - this.size/2;
+        this.vx = -this.vx * bounceFactor;
+      }
+
+      // Bounce off trampoline (simple AABB collision)
+      if (
+        this.x > trampoline.x - trampoline.width / 2 &&
+        this.x < trampoline.x + trampoline.width / 2 &&
+        this.y + this.size/2 > trampoline.y - trampoline.height &&
+        this.y + this.size/2 < trampoline.y &&
+        this.vy > 0 // falling down
+      ) {
+        this.y = trampoline.y - trampoline.height - this.size/2;
+        this.vy = -this.vy * 1.2; // trampoline gives extra bounce!
+      }
+    }
+
+    draw() {
+      ctx.fillStyle = this.color;
+      ctx.beginPath();
+      if (this.type === 'circle') {
+        ctx.arc(this.x, this.y, this.size / 2, 0, Math.PI * 2);
+      } else if (this.type === 'square') {
+        ctx.rect(this.x - this.size / 2, this.y - this.size / 2, this.size, this.size);
+      }
+      ctx.fill();
+    }
+  }
+
+  // Draw trampoline
+  function drawTrampoline() {
+    ctx.fillStyle = '#00ff00';
+    ctx.strokeStyle = '#0f0';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.rect(
+      trampoline.x - trampoline.width / 2,
+      trampoline.y - trampoline.height,
+      trampoline.width,
+      trampoline.height
+    );
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  // Main loop
+  function loop() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    drawTrampoline();
+
+    shapes.forEach(shape => {
+      shape.update();
+      shape.draw();
+    });
+
+    requestAnimationFrame(loop);
+  }
+
+  loop();
+
+  // Spawn shape on click/tap
+  function spawnShape(x, y) {
+    shapes.push(new Shape(x, y, currentShape));
+  }
+
+  // Mouse events
+  canvas.addEventListener('mousedown', e => {
+    spawnShape(e.clientX, e.clientY);
+  });
+
+  // Touch events
+  canvas.addEventListener('touchstart', e => {
+    if (e.touches.length === 1) {
+      const t = e.touches[0];
+      spawnShape(t.clientX, t.clientY);
+    }
+  });
+
+})();
+</script>
+
 </body>
 </html>
