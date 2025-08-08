@@ -2,91 +2,197 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Simple Trampoline Physics</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Trampoline Physics Simulator</title>
 <style>
+  /* Reset & base */
   * {
     margin: 0; padding: 0; box-sizing: border-box;
   }
   body, html {
     width: 100%; height: 100%;
-    background: #111;
     overflow: hidden;
+    background: linear-gradient(to top, #001022 0%, #004466 100%);
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
     user-select: none;
     touch-action: manipulation;
-    font-family: sans-serif;
     color: #eee;
   }
+
+  /* UI container */
   #ui {
     position: fixed;
-    top: 10px; left: 50%; transform: translateX(-50%);
-    background: rgba(0,0,0,0.7);
-    padding: 10px 20px;
-    border-radius: 12px;
+    top: 12px; left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.75);
+    border-radius: 14px;
     display: flex;
-    gap: 15px;
-    align-items: center;
-    z-index: 10;
+    gap: 20px;
+    padding: 12px 22px;
+    box-shadow: 0 4px 10px rgba(0, 255, 128, 0.4);
+    z-index: 1000;
+    flex-wrap: wrap;
+    justify-content: center;
   }
-  #ui label {
+
+  /* Shape buttons */
+  .shape-btn {
+    background: #111;
+    border: 2px solid #0f0;
+    border-radius: 8px;
+    color: #0f0;
+    padding: 8px 20px;
     cursor: pointer;
+    font-weight: 600;
+    transition: all 0.25s ease;
+    user-select: none;
   }
-  #ui input[type="radio"] {
-    margin-right: 5px;
+  .shape-btn.selected,
+  .shape-btn:hover {
+    background: #0f0;
+    color: #111;
+    box-shadow: 0 0 12px #0f0;
   }
+
+  /* Planet selector */
+  select {
+    background: #111;
+    color: #0f0;
+    border: 2px solid #0f0;
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-weight: 600;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.25s ease;
+  }
+  select:hover {
+    background: #0f0;
+    color: #111;
+    box-shadow: 0 0 12px #0f0;
+  }
+
+  /* Canvas styling */
   canvas {
     display: block;
-    background: linear-gradient(to top, #222 0%, #000 100%);
+    width: 100vw;
+    height: 100vh;
+    background: #002233;
+    touch-action: none;
+  }
+
+  /* Info text */
+  #info {
+    position: fixed;
+    bottom: 10px; left: 50%;
+    transform: translateX(-50%);
+    color: #0f0;
+    font-weight: 600;
+    font-size: 14px;
+    font-family: monospace;
+    text-shadow: 0 0 3px black;
+    user-select: none;
+    z-index: 1000;
   }
 </style>
 </head>
 <body>
 
-<div id="ui">
-  <label><input type="radio" name="shape" value="circle" checked /> Circle</label>
-  <label><input type="radio" name="shape" value="square" /> Square</label>
+<div id="ui" aria-label="Controls">
+  <button class="shape-btn selected" data-shape="circle" aria-pressed="true" title="Circle shape">Circle</button>
+  <button class="shape-btn" data-shape="square" aria-pressed="false" title="Square shape">Square</button>
+  <select id="planet-select" aria-label="Select Planet Gravity">
+    <option value="earth" selected>Earth</option>
+    <option value="moon">Moon</option>
+    <option value="jupiter">Jupiter</option>
+  </select>
 </div>
 
-<canvas id="game"></canvas>
+<canvas id="game" role="main" aria-label="Trampoline physics simulation"></canvas>
+<div id="info">Left click/tap: Place shape | Drag: Aim preview | Right click / Two-finger tap: Cancel placement</div>
 
 <script>
 (() => {
   const canvas = document.getElementById('game');
   const ctx = canvas.getContext('2d');
 
-  // Resize canvas full screen
-  function resize() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-  }
-  window.addEventListener('resize', resize);
-  resize();
+  // Physics params per planet
+  const gravityMap = {
+    earth: 0.6,
+    moon: 0.1,
+    jupiter: 1.6,
+  };
 
-  // Gravity and physics params
-  const gravity = 0.6;
-  const bounceFactor = 0.7; // energy retained after bounce
-  const trampolineHeight = 30;
-  const trampolineWidthRatio = 0.5; // half screen width
+  // Current physics gravity
+  let gravity = gravityMap.earth;
 
-  // Trampoline position
-  const trampoline = {
-    x: canvas.width / 2,
-    y: canvas.height - trampolineHeight,
-    width: canvas.width * trampolineWidthRatio,
-    height: trampolineHeight,
+  // Trampoline params
+  let trampoline = {
+    x: 0,
+    y: 0,
+    width: 0,
+    height: 30,
+    baseHeight: 30,
+    squash: 0,
+    squashSpeed: 0.3,
   };
 
   // Shapes array
   const shapes = [];
 
-  // Current shape type selected
+  // Currently selected shape
   let currentShape = 'circle';
 
-  // UI shape selector
-  document.querySelectorAll('input[name="shape"]').forEach(radio => {
-    radio.addEventListener('change', e => {
-      currentShape = e.target.value;
+  // Placement preview data
+  let placingShape = null; // {x, y, type}
+  let isPlacing = false;
+
+  // Track pointer position for drag aiming
+  let pointerStart = null;
+  let pointerCurrent = null;
+
+  // Responsive resize
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    trampoline.width = canvas.width * 0.5;
+    trampoline.x = canvas.width / 2;
+    trampoline.y = canvas.height - trampoline.height;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // Select shape UI handlers
+  const shapeButtons = document.querySelectorAll('.shape-btn');
+  shapeButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      shapeButtons.forEach(b => {
+        b.classList.remove('selected');
+        b.setAttribute('aria-pressed', 'false');
+      });
+      btn.classList.add('selected');
+      btn.setAttribute('aria-pressed', 'true');
+      currentShape = btn.dataset.shape;
+      cancelPlacement();
     });
+  });
+
+  // Planet selection UI
+  const planetSelect = document.getElementById('planet-select');
+  planetSelect.addEventListener('change', e => {
+    gravity = gravityMap[e.target.value];
+    // Change background based on planet
+    switch(e.target.value) {
+      case 'earth':
+        document.body.style.background = 'linear-gradient(to top, #001022 0%, #004466 100%)';
+        break;
+      case 'moon':
+        document.body.style.background = 'linear-gradient(to top, #222 0%, #888 100%)';
+        break;
+      case 'jupiter':
+        document.body.style.background = 'linear-gradient(to top, #553311 0%, #aa7744 100%)';
+        break;
+    }
   });
 
   // Shape class
@@ -94,112 +200,191 @@
     constructor(x, y, type) {
       this.x = x;
       this.y = y;
-      this.vx = (Math.random() - 0.5) * 4; // random horizontal speed
-      this.vy = 0;
-      this.size = 40;
       this.type = type;
+      this.size = 40;
+      this.mass = 1; // could expand later
+      this.vx = (Math.random() - 0.5) * 4;
+      this.vy = 0;
       this.color = type === 'circle' ? '#4caf50' : '#2196f3';
     }
 
     update() {
-      // Gravity
+      // Apply gravity
       this.vy += gravity;
 
       // Move
       this.x += this.vx;
       this.y += this.vy;
 
-      // Bounce off floor
-      if (this.y + this.size/2 > canvas.height) {
-        this.y = canvas.height - this.size/2;
-        this.vy = -this.vy * bounceFactor;
-      }
-
-      // Bounce off walls
-      if (this.x - this.size/2 < 0) {
+      // Collide with walls
+      if(this.x - this.size/2 < 0) {
         this.x = this.size/2;
-        this.vx = -this.vx * bounceFactor;
+        this.vx = -this.vx * 0.7;
       }
-      if (this.x + this.size/2 > canvas.width) {
+      if(this.x + this.size/2 > canvas.width) {
         this.x = canvas.width - this.size/2;
-        this.vx = -this.vx * bounceFactor;
+        this.vx = -this.vx * 0.7;
       }
 
-      // Bounce off trampoline (simple AABB collision)
-      if (
-        this.x > trampoline.x - trampoline.width / 2 &&
-        this.x < trampoline.x + trampoline.width / 2 &&
+      // Floor collision
+      if(this.y + this.size/2 > canvas.height) {
+        this.y = canvas.height - this.size/2;
+        this.vy = -this.vy * 0.7;
+        triggerTrampolineSquash();
+      }
+
+      // Trampoline collision (AABB + circle approximation)
+      if(
+        this.x > trampoline.x - trampoline.width/2 &&
+        this.x < trampoline.x + trampoline.width/2 &&
         this.y + this.size/2 > trampoline.y - trampoline.height &&
         this.y + this.size/2 < trampoline.y &&
-        this.vy > 0 // falling down
+        this.vy > 0
       ) {
         this.y = trampoline.y - trampoline.height - this.size/2;
-        this.vy = -this.vy * 1.2; // trampoline gives extra bounce!
+        this.vy = -this.vy * 1.3; // extra bounce from trampoline
+        triggerTrampolineSquash();
       }
     }
 
     draw() {
       ctx.fillStyle = this.color;
       ctx.beginPath();
-      if (this.type === 'circle') {
-        ctx.arc(this.x, this.y, this.size / 2, 0, Math.PI * 2);
-      } else if (this.type === 'square') {
-        ctx.rect(this.x - this.size / 2, this.y - this.size / 2, this.size, this.size);
+      if(this.type === 'circle') {
+        ctx.arc(this.x, this.y, this.size/2, 0, Math.PI * 2);
+      } else if(this.type === 'square') {
+        ctx.rect(this.x - this.size/2, this.y - this.size/2, this.size, this.size);
       }
       ctx.fill();
     }
   }
 
-  // Draw trampoline
+  // Trigger trampoline squash animation
+  function triggerTrampolineSquash() {
+    trampoline.squash = 1;
+  }
+
+  // Draw trampoline with squash effect
   function drawTrampoline() {
+    const squashAmount = Math.min(trampoline.squash, 1);
+    const squashedHeight = trampoline.baseHeight * (1 - 0.5 * squashAmount);
+    const squashedY = trampoline.y + (trampoline.baseHeight - squashedHeight);
+
+    // Draw trampoline base
     ctx.fillStyle = '#00ff00';
     ctx.strokeStyle = '#0f0';
-    ctx.lineWidth = 4;
+    ctx.lineWidth = 5;
     ctx.beginPath();
     ctx.rect(
-      trampoline.x - trampoline.width / 2,
-      trampoline.y - trampoline.height,
+      trampoline.x - trampoline.width/2,
+      squashedY - squashedHeight,
       trampoline.width,
-      trampoline.height
+      squashedHeight
     );
     ctx.fill();
     ctx.stroke();
+
+    // Reduce squash amount for smooth animation
+    trampoline.squash -= trampoline.squashSpeed;
+    if(trampoline.squash < 0) trampoline.squash = 0;
   }
 
-  // Main loop
+  // Draw shape preview during placement
+  function drawPreview() {
+    if(!placingShape) return;
+    const {x, y, type} = placingShape;
+    ctx.save();
+    ctx.globalAlpha = 0.6;
+    ctx.fillStyle = type === 'circle' ? '#4caf50' : '#2196f3';
+    ctx.beginPath();
+    if(type === 'circle') {
+      ctx.arc(x, y, 20, 0, Math.PI*2);
+    } else {
+      ctx.rect(x - 20, y - 20, 40, 40);
+    }
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Clear placement preview & reset
+  function cancelPlacement() {
+    placingShape = null;
+    isPlacing = false;
+    pointerStart = null;
+    pointerCurrent = null;
+  }
+
+  // Game loop
   function loop() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    // Background gradient depending on planet
+    // (Handled by body background)
+
     drawTrampoline();
 
-    shapes.forEach(shape => {
-      shape.update();
-      shape.draw();
+    shapes.forEach(s => {
+      s.update();
+      s.draw();
     });
+
+    drawPreview();
 
     requestAnimationFrame(loop);
   }
 
   loop();
 
-  // Spawn shape on click/tap
-  function spawnShape(x, y) {
-    shapes.push(new Shape(x, y, currentShape));
+  // Handle pointer events for placement
+  function getPointerPos(e) {
+    if(e.touches && e.touches.length) {
+      return {x: e.touches[0].clientX, y: e.touches[0].clientY};
+    }
+    return {x: e.clientX, y: e.clientY};
   }
 
-  // Mouse events
-  canvas.addEventListener('mousedown', e => {
-    spawnShape(e.clientX, e.clientY);
+  canvas.addEventListener('pointerdown', e => {
+    if(e.button === 2) { // Right-click: cancel placement
+      cancelPlacement();
+      return;
+    }
+    e.preventDefault();
+    pointerStart = getPointerPos(e);
+    placingShape = {x: pointerStart.x, y: pointerStart.y, type: currentShape};
+    isPlacing = true;
   });
 
-  // Touch events
+  canvas.addEventListener('pointermove', e => {
+    if(!isPlacing) return;
+    e.preventDefault();
+    pointerCurrent = getPointerPos(e);
+    // Update preview position with current pointer location
+    placingShape.x = pointerCurrent.x;
+    placingShape.y = pointerCurrent.y;
+  });
+
+  canvas.addEventListener('pointerup', e => {
+    if(!isPlacing) return;
+    e.preventDefault();
+    // Place shape at final position
+    shapes.push(new Shape(placingShape.x, placingShape.y, placingShape.type));
+    cancelPlacement();
+  });
+
+  // Cancel placement on right click
+  canvas.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    cancelPlacement();
+  });
+
+  // For mobile two-finger tap cancel
+  let touchCount = 0;
   canvas.addEventListener('touchstart', e => {
-    if (e.touches.length === 1) {
-      const t = e.touches[0];
-      spawnShape(t.clientX, t.clientY);
+    touchCount = e.touches.length;
+    if(touchCount === 2) {
+      cancelPlacement();
     }
   });
-
 })();
 </script>
 
